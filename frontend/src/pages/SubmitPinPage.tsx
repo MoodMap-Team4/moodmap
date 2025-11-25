@@ -24,6 +24,7 @@ export default function SubmitPinPage() {
   const { user } = useAuth();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const currentMarkerRef = useRef<mapboxgl.Marker | null>(null);
 
   // Redirect if not logged in and check daily submission
   useEffect(() => {
@@ -55,15 +56,15 @@ export default function SubmitPinPage() {
 
     const map = mapRef.current;
 
-    // Handle map clicks to place pin (only one pin allowed)
+    // Handle map clicks to place pin
     map.on("click", (e) => {
-      // Don't place another pin if one already exists
-      if (pinPlaced) {
-        return;
-      }
-
       const clickedLng = e.lngLat.lng;
       const clickedLat = e.lngLat.lat;
+
+      // Remove previous marker if it exists
+      if (currentMarkerRef.current) {
+        currentMarkerRef.current.remove();
+      }
 
       // Create new marker at clicked location
       const markerEl = document.createElement("div");
@@ -75,16 +76,25 @@ export default function SubmitPinPage() {
       markerEl.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
       markerEl.style.cursor = "pointer";
 
-      const _newMarker = new mapboxgl.Marker(markerEl)
+      const newMarker = new mapboxgl.Marker(markerEl)
         .setLngLat([clickedLng, clickedLat])
         .addTo(map);
-      void _newMarker; // Marker is added to map via side effect
 
+      currentMarkerRef.current = newMarker;
       setLng(clickedLng);
       setLat(clickedLat);
       setPinPlaced(true);
     });
-  }, [pinPlaced]);
+  }, []);
+
+  const handleResetLocation = () => {
+    // Remove the current marker
+    if (currentMarkerRef.current) {
+      currentMarkerRef.current.remove();
+      currentMarkerRef.current = null;
+    }
+    setPinPlaced(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,8 +139,18 @@ export default function SubmitPinPage() {
         <div ref={containerRef} className="mapbox-container" style={{ marginBottom: 16 }} />
 
         {pinPlaced ? (
-          <div style={{ fontSize: 14, color: "#16a34a", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-            ✓ <strong>Pin placed at {lat.toFixed(4)}, {lng.toFixed(4)}</strong>
+          <div style={{ fontSize: 14, color: "#16a34a", marginBottom: 16, display: "flex", alignItems: "center", gap: 8, justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              ✓ <strong>Pin placed at {lat.toFixed(4)}, {lng.toFixed(4)}</strong>
+            </div>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={handleResetLocation}
+              style={{ padding: "6px 12px", fontSize: "12px" }}
+            >
+              Change
+            </button>
           </div>
         ) : (
           <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 16 }}>
