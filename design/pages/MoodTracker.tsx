@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import EmotionButton from '../components/EmotionButton';
 import FloatingStars from '../components/FloatingStars';
+import LoginScreen from '../components/LoginScreen';
+import MapPinScreen from '../components/MapPinScreen';
 import { Sparkles, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -18,24 +20,49 @@ const emotions = [
 ];
 
 export default function MoodTracker() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState(null);
   const [notes, setNotes] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [savedEmoji, setSavedEmoji] = useState(null);
   const queryClient = useQueryClient();
 
   const saveMoodMutation = useMutation({
     mutationFn: (data) => base44.entities.MoodEntry.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries(['moods']);
+      const emotionData = emotions.find(e => e.label === selectedEmotion);
+      setSavedEmoji(emotionData?.emoji || '✨');
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
-        setSelectedEmotion(null);
-        setNotes('');
-      }, 2000);
+        setShowMap(true);
+      }, 1500);
       toast.success('mood logged! ✨');
     },
   });
+
+  const handleLogin = (name) => {
+    setUsername(name);
+    setIsLoggedIn(true);
+  };
+
+  const handleMapComplete = (pin) => {
+    setShowMap(false);
+    setSelectedEmotion(null);
+    setNotes('');
+    setSavedEmoji(null);
+  };
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (showMap) {
+    return <MapPinScreen onComplete={handleMapComplete} moodEmoji={savedEmoji} />;
+  }
 
   const handleSave = () => {
     if (!selectedEmotion) {
