@@ -2,12 +2,12 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 const moodEmojis = {
-  stressed: ['😰', '💦', '😵', '🌀', '😤'],
-  tired: ['😴', '💤', '🛏️', '😪', '🌙'],
+  stressed: ['😰', '⏰', '😵', '🌀', '😩'],
+  tired: ['😴', '💤', '🛏️', '🧸', '🌙'],
   vibes: ['😎', '✨', '🌟', '💫', '🤙'],
   hyped: ['🔥', '⚡', '💥', '🚀', '🎉'],
   mid: ['😐', '🫤', '😶', '🙄', '💭'],
-  default: ['⭐', '✨', '💫', '🌟', '💖'],
+  default: ['⭐', '💅', '💫', '🌟', '💖'],
 };
 
 export default function FloatingStars({ selectedMood }) {
