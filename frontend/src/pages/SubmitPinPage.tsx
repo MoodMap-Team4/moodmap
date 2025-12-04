@@ -10,11 +10,11 @@ import EmotionButton from "../components/EmotionButton";
 import FloatingStars from "../components/FloatingStars";
 
 const MOODS: Array<{ emoji: string; label: Mood; color: string }> = [
-  { emoji: "😰", label: "STRESSED", color: "#A7C7E7" },
-  { emoji: "😴", label: "TIRED", color: "#B8B8B8" },
-  { emoji: "😎", label: "VIBING", color: "#FFE17B" },
   { emoji: "🔥", label: "HYPED", color: "#FF9AA2" },
+  { emoji: "😎", label: "VIBING", color: "#FFE17B" },
   { emoji: "😐", label: "MID", color: "#B4E7CE" },
+  { emoji: "😴", label: "TIRED", color: "#B8B8B8" },
+  { emoji: "😰", label: "STRESSED", color: "#A7C7E7" },
 ];
 
 // Set Mapbox token
@@ -136,7 +136,7 @@ export default function SubmitPinPage() {
       // Perform full QC check on message before submission
       if (message) {
         const qcResult = await checkContentQuality(message);
-        
+
         // If content is blocked, don't submit
         if (qcResult.status === "blocked") {
           setError(qcResult.message);
@@ -261,7 +261,7 @@ export default function SubmitPinPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-4">
                   what&apos;s the vibe?
                 </label>
-                <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex flex-wrap justify-center gap-3">
                   {MOODS.map((m) => (
                     <EmotionButton
                       key={m.label}
@@ -290,21 +290,21 @@ export default function SubmitPinPage() {
                   placeholder="like, what's on your mind rn..."
                   className="w-full min-h-[100px] bg-white/50 border-2 border-amber-300/50 rounded-2xl p-3 text-gray-700 placeholder:text-gray-400 focus:ring-2 focus:ring-amber-400 focus:outline-none resize-none"
                 />
-            {qcWarning && (
-              <div
-                style={{
-                  color: "#f97316",
-                  fontSize: 13,
-                  marginTop: 8,
-                  padding: "8px 12px",
-                  backgroundColor: "#ffedd5",
-                  borderRadius: 4,
-                  border: "1px solid #fed7aa",
-                }}
-              >
-                ⚠️ {qcWarning}
-              </div>
-            )}
+                {qcWarning && (
+                  <div
+                    style={{
+                      color: "#f97316",
+                      fontSize: 13,
+                      marginTop: 8,
+                      padding: "8px 12px",
+                      backgroundColor: "#ffedd5",
+                      borderRadius: 4,
+                      border: "1px solid #fed7aa",
+                    }}
+                  >
+                    ⚠️ {qcWarning}
+                  </div>
+                )}
                 <div className="text-xs text-amber-700 mt-2 text-right">
                   {message.length}/200
                 </div>
