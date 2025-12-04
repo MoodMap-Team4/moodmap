@@ -222,7 +222,7 @@ export default function MapPage() {
           )}
 
           {!loading && pins.length > 0 && (
-            <div className="max-h-80 overflow-auto space-y-2">
+            <div className="max-h-80 overflow-auto space-y-2 scrollbar-hide">
               {pins.map((pin) => {
                 // Get color for mood to match the map
                 const moodColors: Record<string, string> = {
