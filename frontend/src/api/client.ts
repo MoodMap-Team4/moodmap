@@ -291,3 +291,77 @@ export async function createPin(input: {
     createdAt: data.created_at,
   };
 }
+
+/**
+ * Check if current user is suspended
+ */
+export async function checkUserSuspension(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session?.user?.id) {
+    return false;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('moderation_level')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (error || !data) {
+      return false;
+    }
+
+    // User is suspended if moderation_level >= 3
+    return data.moderation_level >= 3;
+  } catch (error) {
+    console.error('Error checking suspension status:', error);
+    return false;
+  }
+}
+
+/**
+ * Report a mood pin for inappropriate content
+ * Returns whether the pin was deleted and if the user was suspended
+ */
+export async function reportPin(pinId: number): Promise<{ pinDeleted: boolean; userSuspended: boolean }> {
+  // Get current user
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  if (!session?.user?.id) {
+    throw new Error('User not authenticated');
+  }
+
+  const reporterId = session.user.id;
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+
+  try {
+    const response = await fetch(`${backendUrl}/pins/report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pin_id: pinId,
+        reporter_id: reporterId,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to report pin');
+    }
+
+    const result = await response.json();
+    return {
+      pinDeleted: result.pin_deleted || false,
+      userSuspended: result.user_suspended || false,
+    };
+  } catch (error) {
+    console.error('Error reporting pin:', error);
+    throw error instanceof Error 
+      ? error 
+      : new Error('Failed to report pin');
+  }
+}

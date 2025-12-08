@@ -1,18 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchPins, calculateStreak, logout } from "../api/client";
+import { fetchPins, calculateStreak, logout, reportPin, checkUserSuspension } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { motion } from "framer-motion";
 import type { MoodPin } from "../types";
 import MapView from "../components/MapView";
 import FloatingStars from "../components/FloatingStars";
 import ConfirmDialog from "../components/ConfirmDialog";
+import FlagButton from "../components/FlagButton";
 
 export default function MapPage() {
   const [pins, setPins] = useState<MoodPin[]>([]);
   const [loading, setLoading] = useState(true);
   const [streak, setStreak] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showReportConfirm, setShowReportConfirm] = useState(false);
+  const [flaggedPinId, setFlaggedPinId] = useState<number | null>(null);
+  const [userSuspended, setUserSuspended] = useState(false);
+  const [showReportSuccess, setShowReportSuccess] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const mapRef = useRef<{
@@ -34,6 +40,10 @@ export default function MapPage() {
 
         const userStreak = await calculateStreak();
         setStreak(userStreak);
+
+        // Check if user is suspended
+        const suspended = await checkUserSuspension();
+        setUserSuspended(suspended);
       } catch (err) {
         console.error("Failed to load data:", err);
       } finally {
@@ -43,6 +53,14 @@ export default function MapPage() {
 
     loadData();
   }, [user, navigate]);
+
+  // Auto-dismiss error message after 5 seconds
+  useEffect(() => {
+    if (reportError) {
+      const timer = setTimeout(() => setReportError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [reportError]);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-br from-pink-100 via-purple-50 to-blue-100">
@@ -54,6 +72,54 @@ export default function MapPage() {
       <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
 
       <div className="relative z-10 container mx-auto px-4 py-8 max-w-2xl">
+        {userSuspended && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 bg-red-100/80 backdrop-blur-sm border-2 border-red-400 rounded-2xl"
+          >
+            <p className="text-red-800 font-semibold text-sm">
+              ⚠️ Your account has been suspended due to multiple policy violations. You can no longer submit pins.
+            </p>
+          </motion.div>
+        )}
+
+        {showReportSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="fixed top-4 right-4 p-4 bg-gradient-to-r from-green-400/90 to-emerald-400/90 backdrop-blur-xl border-2 border-green-300 rounded-2xl shadow-lg z-50"
+          >
+            <p className="text-white font-bold text-base">
+              ✅ Report sent! Thanks for helping keep MoodMap safe.
+            </p>
+          </motion.div>
+        )}
+
+        {reportError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.9 }}
+            transition={{ type: "spring", damping: 20, stiffness: 300 }}
+            className="fixed top-4 right-4 p-4 bg-gradient-to-r from-red-400/90 to-pink-400/90 backdrop-blur-xl border-2 border-red-300 rounded-2xl shadow-lg z-50"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-white font-bold text-base flex-1">
+                ⚠️ {reportError}
+              </p>
+              <button
+                onClick={() => setReportError(null)}
+                className="text-white hover:text-red-100 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         <div className="flex justify-between items-start mb-6">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -103,6 +169,68 @@ export default function MapPage() {
             navigate("/");
           }}
           onCancel={() => setShowLogoutConfirm(false)}
+        />
+
+        {/* Report Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={showReportConfirm}
+          title="Report this post?"
+          message="Are you reporting this for inappropriate language or self-harm content? Community reports help keep MoodMap safe for everyone."
+          confirmText="Report"
+          cancelText="Cancel"
+          isDangerous={true}
+          onConfirm={async () => {
+            try {
+              if (flaggedPinId) {
+                const result = await reportPin(flaggedPinId);
+                
+                // If pin was deleted due to reaching report threshold, remove it from list
+                if (result.pinDeleted) {
+                  setPins((prevPins) => 
+                    prevPins.filter((pin) => pin.id !== flaggedPinId)
+                  );
+                }
+                
+                // If user was suspended, show alert
+                if (result.userSuspended) {
+                  alert("This user's account has been suspended due to multiple policy violations.");
+                }
+                
+                // Show success message
+                setShowReportSuccess(true);
+                setTimeout(() => setShowReportSuccess(false), 3000);
+              }
+              
+              setShowReportConfirm(false);
+              setFlaggedPinId(null);
+            } catch (error) {
+              console.error("Error reporting pin:", error);
+              let errorMessage = "Failed to report pin. Please try again.";
+              
+              if (error instanceof Error) {
+                const msg = error.message.toLowerCase();
+                if (msg.includes("already reported") || msg.includes("have already reported")) {
+                  errorMessage = "You've already reported this pin. You can only report each pin once.";
+                } else if (msg.includes("pin not found") || msg.includes("not found")) {
+                  errorMessage = "This pin no longer exists.";
+                } else if (msg.includes("not authenticated")) {
+                  errorMessage = "Please log in to report pins.";
+                } else if (msg.includes("suspended")) {
+                  errorMessage = "This user's account is already suspended.";
+                } else {
+                  errorMessage = error.message;
+                }
+              }
+              
+              setReportError(errorMessage);
+              setShowReportConfirm(false);
+              setFlaggedPinId(null);
+            }
+          }}
+          onCancel={() => {
+            setShowReportConfirm(false);
+            setFlaggedPinId(null);
+          }}
         />
 
         {/* Streak Display */}
@@ -243,12 +371,12 @@ export default function MapPage() {
                         mapRef.current.centerOnPin(pin.lat, pin.lng, 18);
                       }
                     }}
-                    className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 cursor-pointer hover:bg-white/80 transition-all"
+                    className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 cursor-pointer hover:bg-white/80 transition-all group"
                     style={{
                       borderLeft: `4px solid ${color}`,
                     }}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <div
                           style={{
@@ -271,12 +399,22 @@ export default function MapPage() {
                       </span>
                     </div>
                     {pin.message && (
-                      <p className="text-sm text-gray-700 mb-2">
+                      <p className="text-sm text-gray-700 mb-1">
                         {pin.message}
                       </p>
                     )}
-                    <div className="text-xs text-gray-500">
-                      📍 {pin.lat.toFixed(4)}, {pin.lng.toFixed(4)}
+                    <div className="flex items-end justify-between">
+                      <div className="text-xs text-gray-500">
+                        📍 {pin.lat.toFixed(4)}, {pin.lng.toFixed(4)}
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <FlagButton
+                          onFlag={() => {
+                            setFlaggedPinId(pin.id);
+                            setShowReportConfirm(true);
+                          }}
+                        />
+                      </div>
                     </div>
                   </motion.div>
                 );
