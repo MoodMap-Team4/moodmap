@@ -45,26 +45,32 @@ app.add_middleware(
 
 # Initialize Supabase client
 supabase_url = os.getenv("SUPABASE_URL")
-# Try service role key first, fall back to anon key
-supabase_key = os.getenv("SUPABASE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+supabase_key_service = os.getenv("SUPABASE_KEY")
+supabase_key_anon = os.getenv("SUPABASE_ANON_KEY")
 
 logger.info(f"Supabase URL: {supabase_url}")
-logger.info(f"Supabase Key present: {bool(supabase_key)}")
-logger.info(f"Supabase Key length: {len(supabase_key) if supabase_key else 0}")
-logger.info(f"Using service role key: {bool(os.getenv('SUPABASE_KEY'))}, Using anon key: {bool(os.getenv('SUPABASE_ANON_KEY'))}")
+logger.info(f"Service Role Key present: {bool(supabase_key_service)}")
+logger.info(f"Anon Key present: {bool(supabase_key_anon)}")
 
 supabase = None
-if supabase_url and supabase_key:
-    try:
-        logger.info(f"Attempting to create Supabase client with URL: {supabase_url}")
-        supabase: Client = create_client(supabase_url, supabase_key)
-        logger.info("✅ Supabase client initialized successfully")
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize Supabase client: {type(e).__name__}: {e}")
-        logger.error(f"Error details: {str(e)}")
-        supabase = None
+if supabase_url:
+    # Try service role key first, then fall back to anon key
+    for key_type, key_value in [("Service Role", supabase_key_service), ("Anon", supabase_key_anon)]:
+        if not key_value:
+            continue
+        try:
+            logger.info(f"Attempting to create Supabase client with {key_type} key")
+            supabase: Client = create_client(supabase_url, key_value)
+            logger.info(f"✅ Supabase client initialized successfully with {key_type} key")
+            break
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to initialize Supabase with {key_type} key: {e}")
+            continue
+    
+    if not supabase:
+        logger.error("❌ Failed to initialize Supabase with any available key")
 else:
-    logger.warning(f"❌ Supabase URL or KEY not configured - URL: {bool(supabase_url)}, KEY: {bool(supabase_key)}")
+    logger.warning("❌ Supabase URL not configured")
 
 # Initialize QC checker
 qc_checker = QCChecker(sentiment_threshold=-0.5)
