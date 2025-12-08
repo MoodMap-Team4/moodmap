@@ -49,17 +49,20 @@ supabase_key = os.getenv("SUPABASE_KEY")
 
 logger.info(f"Supabase URL: {supabase_url}")
 logger.info(f"Supabase Key present: {bool(supabase_key)}")
+logger.info(f"Supabase Key length: {len(supabase_key) if supabase_key else 0}")
 
 supabase = None
 if supabase_url and supabase_key:
     try:
+        logger.info(f"Attempting to create Supabase client with URL: {supabase_url}")
         supabase: Client = create_client(supabase_url, supabase_key)
-        logger.info("Supabase client initialized successfully")
+        logger.info("✅ Supabase client initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize Supabase client: {e}")
+        logger.error(f"❌ Failed to initialize Supabase client: {type(e).__name__}: {e}")
+        logger.error(f"Error details: {str(e)}")
         supabase = None
 else:
-    logger.warning("Supabase URL or KEY not configured")
+    logger.warning(f"❌ Supabase URL or KEY not configured - URL: {bool(supabase_url)}, KEY: {bool(supabase_key)}")
 
 # Initialize QC checker
 qc_checker = QCChecker(sentiment_threshold=-0.5)
