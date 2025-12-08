@@ -35,7 +35,6 @@ export default function SubmitPinPage() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
   const [isRequestingLocation, setIsRequestingLocation] = useState(false);
-  const [userSuspended, setUserSuspended] = useState(false);
 
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -64,7 +63,6 @@ export default function SubmitPinPage() {
 
     checkUserSuspension()
       .then((suspended) => {
-        setUserSuspended(suspended);
         if (suspended) {
           navigate("/map");
         }
@@ -183,15 +181,6 @@ export default function SubmitPinPage() {
       setPinPlaced(true);
     });
   }, [lng, lat]);
-
-  const handleResetLocation = () => {
-    // Remove the current marker
-    if (currentMarkerRef.current) {
-      currentMarkerRef.current.remove();
-      currentMarkerRef.current = null;
-    }
-    setPinPlaced(false);
-  };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newMessage = e.target.value;

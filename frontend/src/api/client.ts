@@ -1,6 +1,6 @@
 import { supabase } from "../lib/supabase";
-import type { CurrentUser, MoodPin, Mood, fromDbMood, toDbMood } from "../types";
-import { fromDbMood as convertFromDbMood, toDbMood as convertToDbMood } from "../types";
+import type { CurrentUser, MoodPin, Mood } from "../types";
+import { fromDbMood, toDbMood } from "../types";
 
 /**
  * Helper function to ensure user exists in the users table
@@ -202,7 +202,7 @@ export async function fetchPins(): Promise<MoodPin[]> {
     id: pin.id,
     lat: pin.latitude,
     lng: pin.longitude,
-    mood: convertFromDbMood(pin.mood),
+    mood: fromDbMood(pin.mood),
     message: pin.note || undefined,
     createdAt: pin.created_at,
   }));
@@ -266,7 +266,7 @@ export async function createPin(input: {
     .from('mood_pins')
     .insert({
       user_id: userId,
-      mood: convertToDbMood(input.mood),
+      mood: toDbMood(input.mood),
       note: input.message || null,
       latitude: input.lat,
       longitude: input.lng,
@@ -286,7 +286,7 @@ export async function createPin(input: {
     id: data.id,
     lat: data.latitude,
     lng: data.longitude,
-    mood: convertFromDbMood(data.mood),
+    mood: fromDbMood(data.mood),
     message: data.note || undefined,
     createdAt: data.created_at,
   };
