@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPin, getCurrentUser, logout } from "../api/client";
+import { createPin, getCurrentUser, logout, checkUserSuspension } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { quickValidateText, checkContentQuality } from "../utils/qcValidator";
 import mapboxgl from "mapbox-gl";
@@ -50,7 +50,7 @@ export default function SubmitPinPage() {
       return;
     }
 
-    // Check if user already submitted today
+    // Check if user already submitted today and check suspension status
     getCurrentUser()
       .then((currentUser) => {
         if (currentUser) {
@@ -59,6 +59,16 @@ export default function SubmitPinPage() {
       })
       .catch((err) => {
         console.error("Error getting current user:", err);
+      });
+
+    checkUserSuspension()
+      .then((suspended) => {
+        if (suspended) {
+          navigate("/map");
+        }
+      })
+      .catch((err) => {
+        console.error("Error checking suspension:", err);
       });
   }, [user, navigate]);
 
@@ -171,15 +181,6 @@ export default function SubmitPinPage() {
       setPinPlaced(true);
     });
   }, [lng, lat]);
-
-  const handleResetLocation = () => {
-    // Remove the current marker
-    if (currentMarkerRef.current) {
-      currentMarkerRef.current.remove();
-      currentMarkerRef.current = null;
-    }
-    setPinPlaced(false);
-  };
 
   const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newMessage = e.target.value;

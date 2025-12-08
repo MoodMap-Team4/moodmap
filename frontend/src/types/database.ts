@@ -14,14 +14,17 @@ export type Database = {
         Row: {
           id: string
           email: string
+          moderation_level: number
         }
         Insert: {
           id: string
           email: string
+          moderation_level?: number
         }
         Update: {
           id?: string
           email?: string
+          moderation_level?: number
         }
         Relationships: []
       }

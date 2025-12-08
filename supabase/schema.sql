@@ -22,7 +22,8 @@ CREATE TYPE public.mood_label AS ENUM (
 -- ============================================
 CREATE TABLE public.users (
   id    UUID PRIMARY KEY,          -- should match auth.users.id
-  email TEXT UNIQUE NOT NULL
+  email TEXT UNIQUE NOT NULL,
+  moderation_level INT DEFAULT 0   -- 0: normal, 1-3: warning levels, 4: suspended
 );
 
 -- Optional: index on email (Supabase usually does this automatically with UNIQUE)
@@ -109,3 +110,45 @@ CREATE POLICY "Users can delete their own mood pins"
 ON public.mood_pins
 FOR DELETE
 USING ( user_id = auth.uid() );
+
+-- ============================================
+-- 7. Pin Reports table for moderation
+--    Tracks which users reported which pins
+-- ============================================
+CREATE TABLE public.pin_reports (
+  id        BIGSERIAL PRIMARY KEY,
+  pin_id    BIGINT NOT NULL REFERENCES public.mood_pins(id) ON DELETE CASCADE,
+  reporter_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Prevent duplicate reports from same user on same pin
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_reports_unique
+  ON public.pin_reports (pin_id, reporter_id);
+
+-- Index for query: get all reports for a pin
+CREATE INDEX IF NOT EXISTS idx_pin_reports_pin_id
+  ON public.pin_reports (pin_id);
+
+-- Index for query: get reports by reporter
+CREATE INDEX IF NOT EXISTS idx_pin_reports_reporter_id
+  ON public.pin_reports (reporter_id);
+
+-- Enable RLS on pin_reports
+ALTER TABLE public.pin_reports ENABLE ROW LEVEL SECURITY;
+
+-- RLS policies: pin_reports table
+-- Allow authenticated users to read all reports (for moderation visibility)
+CREATE POLICY "Authenticated users can read pin reports"
+ON public.pin_reports
+FOR SELECT
+USING ( auth.uid() IS NOT NULL );
+
+-- Allow authenticated users to create reports
+CREATE POLICY "Authenticated users can report pins"
+ON public.pin_reports
+FOR INSERT
+WITH CHECK ( 
+  auth.uid() IS NOT NULL
+  AND reporter_id = auth.uid()
+);

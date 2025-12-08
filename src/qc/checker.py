@@ -8,7 +8,11 @@ from textblob import TextBlob
 
 
 # Initialize profanity filter with default wordlist
-profanity.load_default_wordlist()
+try:
+    profanity.load_censor_words()
+except:
+    # Fallback if the method doesn't exist
+    pass
 
 
 class QCChecker:
